@@ -66,9 +66,9 @@ class RTTITypeDescriptor(MemObject):
         super(RTTITypeDescriptor, self).__init__(addr, deepness)
         nameAddr = addr + RTTITypeDescriptor.Offset.mangledName.value + RTTITypeDescriptor.NameOffset.classPrefix.value
         self.mangledName = idc.GetString(nameAddr)
-        demangledName = idc.Demangle('??_7' + self.mangledName + '6B@', 8)
+        demangledName = idc.Demangle(f'??_7{self.mangledName}6B@', 8)
         if demangledName != None:
-            demangledName = demangledName[0:len(demangledName)-11]
+            demangledName = demangledName[:len(demangledName)-11]
         self.name = demangledName
 
     def __repr__(self):
@@ -120,7 +120,7 @@ class RTTIClassHierarchyDescriptor(MemObject):
         print("Children:")
         # iterate over Base Class Array
         for baseClassDescriptor in self.getChildren():
-            print(" - %s" % (baseClassDescriptor.typeDescriptor))
+            print(f" - {baseClassDescriptor.typeDescriptor}")
 
     def hasChildren(self):
         return self.numberOfItems > 0
@@ -170,11 +170,9 @@ def hasChildrenOfType(classHierarchyDescriptor, typeName, deepness = 0):
     if classHierarchyDescriptor.hasChildren():
         children = classHierarchyDescriptor.getChildren(max_hierarchy_deepness)
         for child in children:
-            # child = RTTIBaseClassDescriptor
             if child.typeDescriptor.name == typeName:
                 return True
-            else:
-                if child.hasChildren():
-                    return hasChildrenOfType(child.classHierarchyDescriptor, typeName, deepness + 1)
-                return False
+            if child.hasChildren():
+                return hasChildrenOfType(child.classHierarchyDescriptor, typeName, deepness + 1)
+            return False
     return False

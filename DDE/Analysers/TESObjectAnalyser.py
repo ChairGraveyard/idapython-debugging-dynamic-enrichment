@@ -76,15 +76,16 @@ class TESObjectAnalyser(AnalyserBase):
             # TESForm
             tesForm = TESForm(addr)
             vftable = tesForm.getVFTable()
-            
-            type_name = "TESForm"
-            hasTESForm = hasChildrenOfType(vftable.RTTICompleteObjectLocator.RTTIClassHierarchyDescriptor, type_name)
 
-            if (hasTESForm):
+            type_name = "TESForm"
+            if hasTESForm := hasChildrenOfType(
+                vftable.RTTICompleteObjectLocator.RTTIClassHierarchyDescriptor,
+                type_name,
+            ):
                 results.append(tesForm)
         except:
             if pdbg: traceback.print_exc()
-        
+
         try:
             # BSFixedString
             fixedString = BSFixedString(addr)

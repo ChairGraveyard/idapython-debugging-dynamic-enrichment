@@ -15,11 +15,9 @@ class VFTableAnalyser(AnalyserBase):
             vftable = VFTable(addr)
             typeDescriptor = vftable.RTTICompleteObjectLocator.RTTITypeDescriptor
             name = typeDescriptor.name
-            if (name is None) or (len(name) <= 0):
-                pass
-            else:
+            if name is not None and len(name) > 0:
                 results.append(typeDescriptor)
         except Exception as e:
             if pdbg: traceback.print_exc()
-        
+
         return results

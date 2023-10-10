@@ -20,32 +20,27 @@ def StringCache_Entry_State_HasCStrValue(state):
     # return is_bit_set(state, 15)
 
 def getCStrFromBSFixedStringExternDataRecursively(extern_data_entry):
-    entry_state = idc.Dword(extern_data_entry + StringCache_Entry.state.value)
-    #print("RecursiveEntryState: 0x%x" % (entry_state))
-    hasCStrValue = StringCache_Entry_State_HasCStrValue(entry_state)
-    if hasCStrValue:
-        #print("cst_value: 0x%x" % (extern_data_entry + StringCache_Entry.data.value))
-        return (extern_data_entry + StringCache_Entry.data.value) % UInt64MaxValue
-    else:
-        return getCStrFromBSFixedStringExternDataRecursively(extern_data_entry + StringCache_Entry.ptrExternDataEntry.value) % UInt64MaxValue
+     entry_state = idc.Dword(extern_data_entry + StringCache_Entry.state.value)
+     if hasCStrValue := StringCache_Entry_State_HasCStrValue(entry_state):
+          #print("cst_value: 0x%x" % (extern_data_entry + StringCache_Entry.data.value))
+          return (extern_data_entry + StringCache_Entry.data.value) % UInt64MaxValue
+     else:
+          return getCStrFromBSFixedStringExternDataRecursively(extern_data_entry + StringCache_Entry.ptrExternDataEntry.value) % UInt64MaxValue
 
 # try get TESObjectREFR full name:
 # fullname
 #def getCStrFromBSFixedString(BSFixedStringAddr, regName):
 def getCStrFromBSFixedString(bs_fixed_string):
-    if bs_fixed_string is None:
-        return 0
-    strCacheEntry = idc.Qword(bs_fixed_string + BSFixedString.ptrEntry.value)
-    #print("EntryData: 0x%x" % (strCacheEntry))
-    if strCacheEntry is None:
-        return 0
-    entry_state = idc.Dword(strCacheEntry + StringCache_Entry.state.value)
-    #print("EntryState: 0x%x" % (entry_state))
-    hasCStrValue =  StringCache_Entry_State_HasCStrValue(entry_state)
-    #print("hasCStrValue: %s" % (hasCStrValue))
-    if hasCStrValue:
-        return (strCacheEntry + StringCache_Entry.data.value) % UInt64MaxValue
-    extern_data_entry = idc.Qword(strCacheEntry + StringCache_Entry.ptrExternDataEntry.value)
-    #print("ExternDataEntry: 0x%x" % (extern_data_entry))
-    return getCStrFromBSFixedStringExternDataRecursively(extern_data_entry)
+     if bs_fixed_string is None:
+         return 0
+     strCacheEntry = idc.Qword(bs_fixed_string + BSFixedString.ptrEntry.value)
+     #print("EntryData: 0x%x" % (strCacheEntry))
+     if strCacheEntry is None:
+         return 0
+     entry_state = idc.Dword(strCacheEntry + StringCache_Entry.state.value)
+     if hasCStrValue := StringCache_Entry_State_HasCStrValue(entry_state):
+          return (strCacheEntry + StringCache_Entry.data.value) % UInt64MaxValue
+     extern_data_entry = idc.Qword(strCacheEntry + StringCache_Entry.ptrExternDataEntry.value)
+     #print("ExternDataEntry: 0x%x" % (extern_data_entry))
+     return getCStrFromBSFixedStringExternDataRecursively(extern_data_entry)
 

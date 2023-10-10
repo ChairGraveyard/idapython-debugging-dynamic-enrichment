@@ -24,14 +24,13 @@ class Track(object):
         deepness = 1
         while len(children) > 0:
             tab = ""
-            for i in range(0, 1):
-                tab = tab + " "
-            
+            tab = f"{tab} "
+
             for child in children:
                 result = result + "\n"
                 result = result + tab
                 result = repr(children)
-        
+
         return result
 
 class OperandType(Enum):
@@ -101,24 +100,21 @@ class OperandStringParser(object):
                 return SizeModifier.x32
             else:
                 return SizeModifier.x64
+        elif self.opStr in x64RegList:
+            return SizeModifier.x64
+        elif self.opStr in x32RegList:
+            return SizeModifier.x32
+        elif self.opStr in x16RegList:
+            return SizeModifier.x16
+        elif self.opStr in x8RegList:
+            return SizeModifier.x8
         else:
-            if self.opStr in x64RegList:
-                return SizeModifier.x64
-            elif self.opStr in x32RegList:
-                return SizeModifier.x32
-            elif self.opStr in x16RegList:
-                return SizeModifier.x16
-            elif self.opStr in x8RegList:
-                return SizeModifier.x8
-            else:
-                # it means that it is an immediate value, like 0FFFFFFFFh
-                return SizeModifier.Unknown
+            # it means that it is an immediate value, like 0FFFFFFFFh
+            return SizeModifier.Unknown
 
     def hasOffset(self):
         parts = self.getParts()
-        if len(parts) > 1:
-            return True
-        return False
+        return len(parts) > 1
     
     def hasReg(self):
         return self.getRegName() != None
@@ -133,10 +129,7 @@ class OperandStringParser(object):
     
     def getParts(self):
         matches = re.findall(self.offsetRegexpStr, self.opStr)
-        if len(matches) == 0:
-            return []
-
-        return matches[0].split('+')
+        return [] if len(matches) == 0 else matches[0].split('+')
 
 class Operand(object):
     def __init__(self, instructionAddress, operandIndex):
@@ -178,9 +171,9 @@ class Operand(object):
             self.value = idc.Word(regValue + self.opValue)
         elif operandType == OperandType.Value8OfRegisterPlusOffset:
             self.value = idc.Byte(regValue + self.opValue)
-        elif (operandType == OperandType.Register64) or (operandType == OperandType.Register32):
+        elif operandType in [OperandType.Register64, OperandType.Register32]:
             self.value = regValue
-        elif (operandType == OperandType.Register16) or (operandType == OperandType.Register8):
+        elif operandType in [OperandType.Register16, OperandType.Register8]:
             self.value = regValue
         elif operandType == OperandType.ImmediateUnkown:
             self.value = self.opValue
@@ -196,9 +189,7 @@ class Instruction(object):
         self.addr = addr
     
     def canHandleMnemonics(self, mnemonics):
-        if mnemonics in self.mnems:
-            return True
-        return False
+        return mnemonics in self.mnems
 
 class MovInstruction(Instruction):
     def __init__(self, addr = 0):
@@ -207,17 +198,11 @@ class MovInstruction(Instruction):
 
     def getSourceValue(self):
         sourceOperand = self.getSourceOperand()
-        if sourceOperand is None:
-           return None
-
-        return sourceOperand.readValue() 
+        return None if sourceOperand is None else sourceOperand.readValue() 
     
     def getTargetValue(self):
         targetOperand = self.getTargetOperand()
-        if targetOperand is None:
-            return None
-
-        return targetOperand.readValue()
+        return None if targetOperand is None else targetOperand.readValue()
 
     def getSourceOperand(self):
         if self.addr == 0:
@@ -242,7 +227,7 @@ class MovInstructionTracker(InstructionTracker):
     def __init__(self, instruction):
         super(MovInstructionTracker, self).__init__(instruction)
         if (type(instruction) != MovInstruction):
-            raise Exception("Unsupported instruction type {}".format(instruction.__name__))
+            raise Exception(f"Unsupported instruction type {instruction.__name__}")
     
     def getTrack(self, valueToTrack):
         sourceValue = self.instruction.getSourceValue()
@@ -274,12 +259,12 @@ class TrackHistory(object):
     
     def addTrack(self, newTrack):
         # TODO: rewrite using binary tree for faster match (key: targetOperand)
-        
-        print("Adding {}".format(repr(newTrack)))
-        
+
+        print(f"Adding {repr(newTrack)}")
+
         if not issubclass(newTrack, Track):
-            raise Exception("Track history only holds subclusses of {}".format(Track.__name__))
-        
+            raise Exception(f"Track history only holds subclusses of {Track.__name__}")
+
         if len(self.historyRoots) == 0:
             self.historyRoots.append(newTrack)
 
@@ -290,26 +275,26 @@ class TrackHistory(object):
                 self.recentRoots.remove(track)
                 self.recentRoots.append(newTrack)
                 return
-        
+
         # deep scan
         for track in self.historyRoots:
             if self.__addTrack__(track, newTrack): return
-        
+
         # parent isn't found, add it as a new root
         self.historyRoots.append(newTrack)
 
     def __addTrack__(self, track, newTrack):
-        if track == None: return False
+        if track is None: return False
 
         if track.targetOperand.readValue() == newTrack.sourceOperand.readValue():
             track.children.append(newTrack)
             self.recentRoots.append(newTrack)
             return True
-        
+
         if len(track.children) > 0:
             for childTrack in track.children:
                 return self.__addTrack__(childTrack, newTrack)
-        
+
         return False
 
 class VarTracker(object):
@@ -339,7 +324,9 @@ class VarTracker(object):
     def stopTracking(self, valueIdentifier):
         trackHistory = self.trackHistories.get(valueIdentifier, None)
         if trackHistory is None:
-            raise Exception("Variable {} isn't added to track. Add it first before removing.".format(valueIdentifier))
+            raise Exception(
+                f"Variable {valueIdentifier} isn't added to track. Add it first before removing."
+            )
         else:
             del trackHistory[valueIdentifier]
 
@@ -358,7 +345,9 @@ class VarTracker(object):
 
             tracker = self.trackerFactory.getTrackerForInstruction(instruction(ripValue))
             if tracker is None:
-                raise Exception("Tracker is not registered for the instruction {}".format(type(instruction).__name__))
+                raise Exception(
+                    f"Tracker is not registered for the instruction {type(instruction).__name__}"
+                )
 
             trackHistory = self.trackHistories.get(valueIdentifier, None)
 

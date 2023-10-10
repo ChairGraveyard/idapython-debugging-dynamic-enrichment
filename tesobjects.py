@@ -20,15 +20,14 @@ def addTraceTo(ea_or_mem_obj, bpt_size = 1):
         print("Adding trace to BGSInventoryList...")
         for item in ea_or_mem_obj.Items.Entries:
            addReadWriteTrace(item.addr, bpt_size)
-        print("Done.")
     elif issubclass(type(ea_or_mem_obj), MemObject):
         print("Adding trace to MemObject...")
         addReadWriteTrace(ea_or_mem_obj.addr)
-        print("Done.")
     else:
         print("Adding trace to address...")
         addReadWriteTrace(ea_or_mem_obj, bpt_size)
-        print("Done.")
+
+    print("Done.")
 
 class DeepnessExceededError(Exception):
     def __init__(self, message = "Deepness exceeded the maximum value."):
@@ -50,7 +49,7 @@ class BSExtraData(MemObject):
         while deepness < deepness_max:
             if current.Next == 0:
                 break
-            deepness = deepness + 1
+            deepness += 1
             nextExtra = BSExtraData(current.Next, self.deepness + 1)
             result.append(nextExtra)
             current = nextExtra
@@ -128,14 +127,13 @@ class StringCache(MemObject):
         def __init__(self, addr, deepness=0):
             super(StringCache.Ref, self).__init__(addr, deepness)
             self.entryAddr = idc.Qword(addr + StringCache.Ref.Offset.Entry.value)
-            
+
             if self.entryAddr == 0:
                 self.entry = NullObject()
+            elif deepness >= max_deepness:
+                self.entry = self.entryAddr
             else:
-                if deepness >= max_deepness:
-                    self.entry = self.entryAddr
-                else:
-                    self.entry = StringCache.Entry(self.entryAddr, deepness + 1)
+                self.entry = StringCache.Entry(self.entryAddr, deepness + 1)
             
         def __repr__(self):
             return "<StringCache::Ref at 0x{:X}, Entry: 0x{:X}>".format(self.addr, self.entryAddr)
@@ -212,32 +210,26 @@ class ExtraDataList(MemObject):
         extraDataAddr = idc.Qword(addr + ExtraDataList.Offset.PtrBSExtraData.value)
         if extraDataAddr == 0:
             self.ExtraData = NullObject()
+        elif deepness >= max_deepness:
+            self.ExtraData = extraDataAddr
         else:
-            if deepness >= max_deepness:
-                self.ExtraData = extraDataAddr
-            else:
-                self.ExtraData = BSExtraData(extraDataAddr, deepness + 1)
-                extraDataTypes = {
-                    0x99: ExtraTextDisplayData
-                }
-                extraDataType = extraDataTypes.get(self.ExtraData.Type, BSExtraData)
-                if (extraDataType != BSExtraData):
-                    self.ExtraData = extraDataType(addr, deepness + 1)
+            self.ExtraData = BSExtraData(extraDataAddr, deepness + 1)
+            extraDataTypes = {
+                0x99: ExtraTextDisplayData
+            }
+            extraDataType = extraDataTypes.get(self.ExtraData.Type, BSExtraData)
+            if (extraDataType != BSExtraData):
+                self.ExtraData = extraDataType(addr, deepness + 1)
 
     def __repr__(self):
         extra = ConditionalFormat(self.ExtraData)
         return ("<ExtraDataList at 0x{:X}, extraData: " + extra.format + ">").format(self.addr, extra.repr)
 
     def toArray(self):
-        if type(self.ExtraData) == NullObject:
-            return []
-        return self.ExtraData.toArray()
+        return [] if type(self.ExtraData) == NullObject else self.ExtraData.toArray()
 
     def getExtraDataTypeNames(self):
-        result = []
-        for extraData in self.toArray():
-            result.append(extraData.getTypeName())
-        return result
+        return [extraData.getTypeName() for extraData in self.toArray()]
 
     def printExtraDataTypes(self):
         for extraDataName in self.getExtraDataTypeNames():
@@ -314,19 +306,17 @@ class Stack(MemObject):
         nextStackAddr = idc.Qword(addr + Stack.Offset.PtrNextStack.value)
         if nextStackAddr == 0:
             self.NextStack = NullObject()
+        elif deepness >= max_deepness:
+            self.NextStack = nextStackAddr
         else:
-            if deepness >= max_deepness:
-                self.NextStack = nextStackAddr
-            else:
-                self.NextStack = Stack(nextStackAddr, deepness + 1)
+            self.NextStack = Stack(nextStackAddr, deepness + 1)
         extraDataListAddr = idc.Qword(addr + Stack.Offset.PtrExtraDataList.value)
         if extraDataListAddr == 0:
             self.ExtraDataList = NullObject()
+        elif deepness >= max_deepness:
+            self.ExtraDataList = extraDataListAddr
         else:
-            if deepness >= max_deepness:
-                self.ExtraDataList = extraDataListAddr
-            else:
-                self.ExtraDataList = ExtraDataList(extraDataListAddr, deepness + 1)
+            self.ExtraDataList = ExtraDataList(extraDataListAddr, deepness + 1)
         self.count = idc.Dword(addr + Stack.Offset.Count.value)
         self.flags = idc.Byte(addr + Stack.Offset.Flags.value)
 
@@ -357,7 +347,7 @@ class Stack(MemObject):
                 result.append(current)
             else:
                 break
-            deepness = deepness + 1
+            deepness += 1
         return result
 
     def isEquipped(self):
@@ -381,19 +371,17 @@ class BGSInventoryItem(MemObject):
 
         if stackAddr == 0:
             self.stack = NullObject()
+        elif deepness >= max_deepness:
+            self.stack = stackAddr
         else:
-            if deepness >= max_deepness:
-                self.stack = stackAddr
-            else:
-                self.stack = Stack(stackAddr, deepness + 1)
-        
+            self.stack = Stack(stackAddr, deepness + 1)
+
         if formAddr == 0:
             self.form = NullObject()
+        elif deepness >= max_deepness:
+            self.form = formAddr
         else:
-            if deepness >= max_deepness:
-                self.form = formAddr
-            else:
-                self.form = TESForm(formAddr, deepness + 1)
+            self.form = TESForm(formAddr, deepness + 1)
 
     def __repr__(self):
         form = ConditionalFormat(self.form if self.deepness >= max_deepness else self.form.addr)
@@ -429,7 +417,7 @@ class BGSInventoryItem(MemObject):
                 itemName = idc.GetString(strAddr)
                 if itemName is not None:
                     if max_length is not None:
-                        itemName = (itemName[:12] + '..') if len(itemName) > 75 else itemName
+                        itemName = f'{itemName[:12]}..' if len(itemName) > 75 else itemName
 
         if itemName is None:
             itemName = '<unknown>'
@@ -446,14 +434,22 @@ class TArray(MemObject):
         self.entriesAddr = idc.Qword(addr + TArray.Offset.Entries.value)
         if t_type is None:
             self.Entries = NullObject()
+        elif deepness >= max_deepness:
+            self.Entries = self.entriesAddr
         else:
-            if deepness >= max_deepness:
-                self.Entries = self.entriesAddr
-            else:
-                if (self.count <= 0) or (t_type is None) or (t_size is None):
-                    self.Entries = []
-                else:
-                    self.Entries = [t_type(i, deepness + 1) for i in range(self.entriesAddr, self.entriesAddr + t_size * (self.count if self.count < self.maxEntries else self.maxEntries), t_size)]
+            self.Entries = (
+                []
+                if self.count <= 0 or t_size is None
+                else [
+                    t_type(i, deepness + 1)
+                    for i in range(
+                        self.entriesAddr,
+                        self.entriesAddr
+                        + t_size * min(self.count, self.maxEntries),
+                        t_size,
+                    )
+                ]
+            )
 
     def __repr__(self):
         type_name = "<unknown>" if self.t_type is None else self.t_type.__name__

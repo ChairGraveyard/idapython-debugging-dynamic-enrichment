@@ -7,9 +7,7 @@ class MemObject(object):
         return "<MemObject at 0x{:X}>".format(self.addr)
 
     def __eq__(self, other):
-        if isinstance(other, MemObject):
-            return self.addr == other.addr
-        return False
+        return self.addr == other.addr if isinstance(other, MemObject) else False
 
     def __ne__(self, other):
         result = self.__eq__(other)
@@ -36,4 +34,4 @@ class ConditionalFormat(object):
             self.repr = value
 
     def __repr__(self):
-        return "<ConditionalFormat format: %s, repr: %s>" % (self.format, self.repr)
+        return f"<ConditionalFormat format: {self.format}, repr: {self.repr}>"

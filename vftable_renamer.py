@@ -14,6 +14,9 @@ if (func_prefix == "MyClass::") or not func_prefix:
 
 start_addr = idc.SelStart()
 end_addr = idc.SelEnd()
+# TODO: 'ask' for it
+skip_bad_prefixes = True
+
 #start = idc.SelStart()
 #end = idc.SelEnd()
 
@@ -87,7 +90,7 @@ for i in range(start_addr, end_addr + 1, 8):
     # ['sub_1401529F0']
     # 1
     default_func_name_matches = re.findall(r'^(sub_[0-9a-fA-F]{9,9}$|nullsub_[0-9a-fA-F]{2,4})', func_name)
-    
+
     # exclude __purecall for renaming
     exclude_func_name_matches = re.findall(r'purecall', func_name)
 
@@ -102,24 +105,19 @@ for i in range(start_addr, end_addr + 1, 8):
     is_func_name_to_exclude = len(exclude_func_name_matches) > 0
     has_prefix = sub_index > -1
 
-    # TODO: 'ask' for it
-    skip_bad_prefixes = True
-
-    if is_default_func_name:
-        # do nothing, func_name is the default one
-        pass
-    elif is_func_name_to_exclude:
+    if (
+        not is_default_func_name
+        and not is_func_name_to_exclude
+        and sub_index > 0
+        and skip_bad_prefixes
+        or not is_default_func_name
+        and is_func_name_to_exclude
+        or not is_default_func_name
+        and sub_index <= 0
+    ):
         continue
-    elif sub_index > 0:
-        # we want to replace wrongParentBase_sub_1401536C0 with CorrectClass::sub_1401536C0
-        if skip_bad_prefixes:
-            continue
-        else:
-            func_name = func_name[sub_index:]
-    else:
-        # it's a custom name, skip it
-        continue
-
+    elif not is_default_func_name:
+        func_name = func_name[sub_index:]
     new_name = func_prefix + func_name
     idc.MakeName(func_addr, new_name)
 

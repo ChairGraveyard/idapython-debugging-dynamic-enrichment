@@ -21,8 +21,12 @@ pvrb = False
 def filter_results(override_list, results, prevResults = []):
     # process overriden_by_all list
     if (len(results) > 1):
-        results = [result for result in results if not (type(result) in override_list["overriden_by_all"])]
-    
+        results = [
+            result
+            for result in results
+            if type(result) not in override_list["overriden_by_all"]
+        ]
+            
 
     # process overriden_by list    
     filteredResults = []
@@ -31,16 +35,15 @@ def filter_results(override_list, results, prevResults = []):
     for result in results + prevResults:
         replacementRequested = False
         for toOverride, overrideBy in override_list["overriden_by"].items():
-            if (type(result) == toOverride):
-                for replacement in overrideBy:
-                    if replacement in resultTypes:
-                        replacementRequested = True
-                        break
-            else:
+            if type(result) != toOverride:
                 continue # only executed if the inner loop did NOT break
+            for replacement in overrideBy:
+                if replacement in resultTypes:
+                    replacementRequested = True
+                    break
             break # only executed if the inner loop DID break
         if (not replacementRequested) and (result in results): filteredResults.append(result)
-    
+
     return filteredResults
 
 def scan_value(scanners, value):
@@ -58,11 +61,13 @@ def print_results(formatStr, results):
 
 def scan_register(reg_str_name):
     regValue = idc.GetRegValue(reg_str_name)
-    if pdbg: print("Reg scan: %s" % (reg_str_name))
+    if pdbg:
+        print(f"Reg scan: {reg_str_name}")
     # TODO: iterate over scanners
     # scanners = AnalyserBase.__subclasses__()
     scanners = [TESObjectAnalyser(), VFTableAnalyser(), FuncAnalyser(), StringAnalyser()]
-    if pvrb: print("Found %s scanners." % (len(scanners)))
+    if pvrb:
+        print(f"Found {len(scanners)} scanners.")
 
     # build override list:
     override_list = {
@@ -79,7 +84,7 @@ def scan_register(reg_str_name):
     # scan registers
     results = scan_value(scanners, regValue)
     results = filter_results(override_list, results)
-    print_results("{} is ".format(reg_str_name.upper()) + "{}", results)
+    print_results(f"{reg_str_name.upper()} is " + "{}", results)
 
     if pdbg: print("scanning ptr..")
 
@@ -89,11 +94,11 @@ def scan_register(reg_str_name):
     prevResults = results
     results = scan_value(scanners, ptr)
     results = filter_results(override_list, results, prevResults)
-    print_results("{} points to ".format(reg_str_name.upper()) + "{}", results)
+    print_results(f"{reg_str_name.upper()} points to " + "{}", results)
 
     ptrPtr = idc.Qword(ptr)
     if pdbg: print("PTR1: 0x%X" % (ptrPtr))
-    
+
     prevResults = prevResults + results
     results = scan_value(scanners, ptrPtr)
     results = filter_results(override_list, results, prevResults)
@@ -101,7 +106,7 @@ def scan_register(reg_str_name):
 
 def scanRegisters(manual = False):
     messagePrefix = "Manual scan" if manual else "Scan"
-    scanInitiatedMessage = messagePrefix + " initiated." 
+    scanInitiatedMessage = f"{messagePrefix} initiated."
     print(scanInitiatedMessage)
 
     print("----------------------------------------------------")

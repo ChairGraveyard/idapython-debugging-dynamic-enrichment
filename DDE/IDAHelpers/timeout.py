@@ -2,7 +2,7 @@ import threading
 import thread
 
 def quit_function(fn_name):
-    print("Func {} aborted: timeout reached".format(fn_name))
+    print(f"Func {fn_name} aborted: timeout reached")
     thread.interrupt_main() # raises KeyboardInterrupt
 
 def exit_after(seconds):
